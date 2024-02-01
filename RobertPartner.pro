@@ -16,8 +16,8 @@ SOURCES += \
     main.cpp \
     MainWindow.cpp \
     widgets/AuthDialog.cpp \
-    widgets/DepartureDialog.cpp \
-    widgets/MaterialLine.cpp
+    widgets/MaterialLine.cpp \
+    widgets/ReturnDialog.cpp
 
 HEADERS += \
     MainWindow.h \
@@ -26,14 +26,14 @@ HEADERS += \
     SEB/Material.h \
     SEB/RESTManager.h \
     widgets/AuthDialog.h \
-    widgets/DepartureDialog.h \
-    widgets/MaterialLine.h
+    widgets/MaterialLine.h \
+    widgets/ReturnDialog.h
 
 FORMS += \
     MainWindow.ui \
     widgets/AuthDialog.ui \
-    widgets/DepartureDialog.ui \
-    widgets/MaterialLine.ui
+    widgets/MaterialLine.ui \
+    widgets/ReturnDialog.ui
 
 TRANSLATIONS += \
     RobertPartner_fr_FR.ts

@@ -157,28 +157,12 @@ Event EventModel::getEvent(const QModelIndex &event)
 
 Q_INVOKABLE void EventModel::fetch(QDate start, QDate end)
 {
-    QJsonArray json = api->bookings(start, end);
+    QList<Event> tmpEvents =  api->bookings(start, end);
 
-    if(!json.isEmpty())
-    {
-        beginResetModel();
-        events.clear();
-        endResetModel();
-
-        beginInsertRows(QModelIndex(), 0, json.count());
-
-        for(auto o : json)
-        {
-            if(o.isObject())
-            {
-                QJsonObject jsonEvent = o.toObject();
-
-                events.append(Event(jsonEvent));
-            }
-        }
-
-        endInsertRows();
-    }
+    beginResetModel();
+    events.clear();
+    events = tmpEvents;
+    endResetModel();
 }
 
 

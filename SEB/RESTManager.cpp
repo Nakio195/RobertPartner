@@ -72,12 +72,14 @@ static std::optional<QJsonArray> byteArrayToJsonArray(const QByteArray &arr)
 }
 
 
-RestAccessManager::RestAccessManager(const QString &host, quint16 port)
+RestAccessManager::RestAccessManager(const QString &host, quint16 port, QTextEdit *logArea)
 {
     baseAPI = host + QString("/api");
 
     manager.connectToHost(host, port);
     manager.setAutoDeleteReplies(true);
+    logTxt = logArea;
+
 }
 
 RestAccessManager::~RestAccessManager() = default;
@@ -95,21 +97,8 @@ bool RestAccessManager::submitCredentials(const QString &user, const QString pas
     creds["password"] = pass;
 
     auto request = QNetworkRequest(QUrl(baseAPI + QString("/session")));
-    request.setHeader(QNetworkRequest::KnownHeaders::ContentTypeHeader, "application/json");
-    request.setHttp2Configuration(QHttp2Configuration());
-    request.setHeader(QNetworkRequest::KnownHeaders::ContentLengthHeader, QJsonDocument(creds).toJson(QJsonDocument::Compact).size());
 
-
-    QEventLoop loop;
-    connect(&manager, &QNetworkAccessManager::finished, &loop, &QEventLoop::quit);
-
-    QNetworkReply* reply = manager.post(request, QJsonDocument(creds).toJson(QJsonDocument::Compact));
-    loop.exec();
-
-    disconnect(&manager, &QNetworkAccessManager::finished, &loop, &QEventLoop::quit);
-
-    if(reply == nullptr)
-        return false;
+    QNetworkReply* reply = post(&request, QJsonDocument(creds));
 
     const std::optional<QJsonObject> json = byteArrayToJsonObject(reply->readAll());
 
@@ -139,49 +128,6 @@ bool RestAccessManager::submitCredentials(const QString &user, const QString pas
     return false;
 }
 
-void RestAccessManager::handleReply(QNetworkReply* reply)
-{
-    switch(mStatus)
-    {
-        case Authorization:
-            getCredentials(reply);
-            break;
-    }
-}
-
-
-bool RestAccessManager::getCredentials(QNetworkReply* reply)
-{
-    // if(reply == nullptr)
-    //     return false;
-
-    // const std::optional<QJsonObject> json = byteArrayToJsonObject(reply->readAll());
-
-    // if(json)
-    // {
-    //     QJsonObject d = *json;
-
-    //     foreach(const QString& key, d.keys())
-    //     {
-    //         QJsonValue value = d.value(key);
-
-    //         if(key == "token")
-    //             setAuthorizationHeader("Authorization", value.toString());
-    //     }
-    // }
-
-    // if(isAuthorized())
-    // {
-    //     qDebug() << "Auth success !";
-    //     emit authSuccess(true);
-    //     return true;
-    // }
-
-    // qDebug() << "Auth failed !";
-    // emit authSuccess(false);
-
-    return false;
-}
 
 void RestAccessManager::requestError(QNetworkReply *reply)
 {
@@ -203,149 +149,169 @@ void RestAccessManager::setAuthorizationHeader(const QString &key, const QString
     authHeader = AuthHeader{ key, value };
 }
 
+void RestAccessManager::log(QNetworkReply* reply)
+{
+    int httpCode = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+
+    if(httpCode < 299 && httpCode >= 200)
+        logTxt->append("Request success : " + QString::number(httpCode));
+
+    else
+    {
+        logTxt->append("Request failed : " + QString::number(httpCode) + QString("\n"));
+        logTxt->append(reply->readAll());
+    }
+}
+
+void RestAccessManager::log(QString text)
+{
+    logTxt->append(text);
+}
+
+QNetworkReply* RestAccessManager::get(QNetworkRequest *request)
+{
+    request->setHeader(QNetworkRequest::KnownHeaders::ContentTypeHeader, "application/json");
+    request->setRawHeader(authHeader->header.toUtf8(), "Bearer " + authHeader->token.toUtf8());
+    request->setHttp2Configuration(QHttp2Configuration());
+
+    log("Sending GET request " + request->url().toDisplayString());
+
+    emit requestStarted();
+    QEventLoop loop;
+    connect(&manager, &QNetworkAccessManager::finished, &loop, &QEventLoop::quit);
+
+    QNetworkReply* reply = manager.get(*request);
+    loop.exec();
+
+    emit requestFinished();
+
+    disconnect(&manager, &QNetworkAccessManager::finished, &loop, &QEventLoop::quit);
+
+    log(reply);
+
+    return reply;
+}
+
+QNetworkReply* RestAccessManager::put(QNetworkRequest *request, QJsonDocument parameters)
+{
+    request->setHeader(QNetworkRequest::KnownHeaders::ContentTypeHeader, "application/json");
+    request->setRawHeader(authHeader->header.toUtf8(), "Bearer " + authHeader->token.toUtf8());
+    request->setHttp2Configuration(QHttp2Configuration());
+    request->setHeader(QNetworkRequest::KnownHeaders::ContentLengthHeader, parameters.toJson(QJsonDocument::Compact).size());
+
+    log("Sending PUT request " + request->url().toDisplayString());
+    qDebug() << parameters.toJson(QJsonDocument::Compact);
+
+    emit requestStarted();
+    QEventLoop loop;
+    connect(&manager, &QNetworkAccessManager::finished, &loop, &QEventLoop::quit);
+
+    QNetworkReply* reply = manager.put(*request, parameters.toJson(QJsonDocument::Compact));
+    loop.exec();
+
+    emit requestFinished();
+
+    disconnect(&manager, &QNetworkAccessManager::finished, &loop, &QEventLoop::quit);
+
+    log(reply);
+
+    return reply;
+}
+
+QNetworkReply* RestAccessManager::post(QNetworkRequest *request, QJsonDocument parameters)
+{
+    request->setHeader(QNetworkRequest::KnownHeaders::ContentTypeHeader, "application/json");
+    request->setHttp2Configuration(QHttp2Configuration());
+    request->setHeader(QNetworkRequest::KnownHeaders::ContentLengthHeader, parameters.toJson(QJsonDocument::Compact).size());
 
 
-QJsonArray RestAccessManager::bookings(QDate start, QDate end)
+    QEventLoop loop;
+    connect(&manager, &QNetworkAccessManager::finished, &loop, &QEventLoop::quit);
+
+    QNetworkReply* reply = manager.post(*request, parameters.toJson(QJsonDocument::Compact));
+    loop.exec();
+
+    disconnect(&manager, &QNetworkAccessManager::finished, &loop, &QEventLoop::quit);
+
+    log(reply);
+
+    return reply;
+}
+
+
+QList<Event> RestAccessManager::bookings(QDate start, QDate end)
 {
     QUrl url(baseAPI+QString("/bookings"));
     QUrlQuery parameters;
 
     parameters.addQueryItem("start", start.toString("yyyy-MM-dd")+QString("+00:00:00"));
     parameters.addQueryItem("end", end.toString("yyyy-MM-dd")+QString("+23:59:59"));
-
     url.setQuery(parameters);
 
     auto request = QNetworkRequest(url);
-    request.setHeader(QNetworkRequest::KnownHeaders::ContentTypeHeader, "application/json");
-    request.setRawHeader(authHeader->header.toUtf8(), "Bearer " + authHeader->token.toUtf8());
-    request.setHttp2Configuration(QHttp2Configuration());
+    QNetworkReply *reply = get(&request);
 
-    qDebug() << "Sending GET request " << url;
-
-    emit requestStarted();
-    QEventLoop loop;
-    connect(&manager, &QNetworkAccessManager::finished, &loop, &QEventLoop::quit);
-
-    QNetworkReply* reply = manager.get(request);
-    loop.exec();
-
-    emit requestFinished();
-
-    disconnect(&manager, &QNetworkAccessManager::finished, &loop, &QEventLoop::quit);
-
-    if(reply == nullptr)
-        return QJsonArray();
+    QList<Event> events;
 
     const std::optional<QJsonArray> json = byteArrayToJsonArray(reply->readAll());
-
     if(json)
-        return *json;
+    {
+        QJsonArray data = *json;
 
-    return QJsonArray();
+        if(!data.isEmpty())
+        {
+            for(auto o : data)
+            {
+                if(o.isObject())
+                {
+                    QJsonObject jsonEvent = o.toObject();
+
+                    events.append(Event(jsonEvent));
+                }
+            }
+        }
+    }
+
+    return events;
 }
 
 
 
-QJsonObject RestAccessManager::event(int id)
+Event RestAccessManager::event(int id)
 {
     QUrl url(baseAPI+QString("/events/") + QString::number(id));
-
     auto request = QNetworkRequest(url);
-    request.setHeader(QNetworkRequest::KnownHeaders::ContentTypeHeader, "application/json");
-    request.setRawHeader(authHeader->header.toUtf8(), "Bearer " + authHeader->token.toUtf8());
-    request.setHttp2Configuration(QHttp2Configuration());
 
-    qDebug() << "Sending GET request " << url;
+    QNetworkReply* reply = get(&request);
 
-    emit requestStarted();
-    QEventLoop loop;
-    connect(&manager, &QNetworkAccessManager::finished, &loop, &QEventLoop::quit);
-
-    QNetworkReply* reply = manager.get(request);
-    loop.exec();
-
-    emit requestFinished();
-
-    disconnect(&manager, &QNetworkAccessManager::finished, &loop, &QEventLoop::quit);
-
-    if(reply == nullptr)
-        return QJsonObject();
+    Event event;
 
     const std::optional<QJsonObject> json = byteArrayToJsonObject(reply->readAll());
 
     if(json)
-        return *json;
+        event = Event(*json);
 
-    return QJsonObject();
+    return event;
 }
 
 
+Event RestAccessManager::returnMaterial(Event event, const QList<Material> &materials)
+{
+    QJsonArray list;
 
+    for(auto mat : materials)
+        list.append(QJsonObject{{"actual", mat.qtyReturned}, {"broken", mat.qtyFault}, {"id", mat.id}});
 
+    QUrl url(baseAPI+QString("/events/") + QString::number(event.id) + QString("/return"));
+    auto request = QNetworkRequest(url);
 
+    QNetworkReply *reply = put(&request, QJsonDocument(list));
 
+    const std::optional<QJsonObject> json = byteArrayToJsonObject(reply->readAll());
 
+    if(json)
+        event = Event(*json);
 
+    return event;
 
-
-
-
-
-
-// RestAccessManager::EventsMap RestAccessManager::getEvents() const
-// {
-//     QMutexLocker lock(&eventsMtx);
-//     return contacts;
-// }
-
-// void RestAccessManager::updateEvent(const EventEntry &entry)
-// {
-//     auto request = QNetworkRequest(QUrl(baseAPI));
-//     request.setHeader(QNetworkRequest::KnownHeaders::ContentTypeHeader, "application/json");
-
-//     if (authHeader)
-//         request.setRawHeader(authHeader->key.toLatin1(), authHeader->value.toLatin1());
-
-//     manager.put(request, QJsonDocument(entry.toJson()).toJson(QJsonDocument::Compact));
-// }
-
-// void RestAccessManager::readEvents(QNetworkReply *reply)
-// {
-//     if (reply->error()) {
-//         return;
-//     }
-//     /*
-//     const std::optional<QJsonO>bject> array = byteArrayToJsonObject(reply->readAll());
-
-//     if (array)
-//     {
-//         EventsMap tempEvents;
-
-//         for (const auto &jsonValue : *array)
-//         {
-//             if (jsonValue.isObject())
-//             {
-//                 const QJsonObject obj = jsonValue.toObject();
-
-//                 if (obj.contains("id") && obj.contains("name"))
-//                     tempEvents.insert(obj.value("id").toInt(),EventEntry{ obj.value("id").toInt(),obj.value("name").toString(),QDate::fromString(obj.value("start").toString()),QDate::fromString(obj.value("end").toString()) });
-//             }
-//         }
-//         {
-//             QMutexLocker lock(&eventsMtx);
-//             contacts.swap(tempEvents);
-//         }
-//         emit eventsChanged();
-//     } else {
-//         this->updateEvents();
-//     }
-// */
-// }
-
-// void RestAccessManager::updateEvents()
-// {
-//     auto request = QNetworkRequest(baseAPI);
-//     request.setHeader(QNetworkRequest::KnownHeaders::ContentTypeHeader, "application/json");
-//     //manager.get(request);
-// }
-
+}

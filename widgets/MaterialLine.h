@@ -19,10 +19,15 @@ class MaterialLine : public QWidget
         ~MaterialLine();
 
         QString reference();
+        bool isArchived();
+        bool hasChanged();
+
+        Material getMaterial();
 
 
     signals:
-        void archive();
+        void archive(const Material &mat);
+        void qtyChange();
 
     public slots:
         void returnQtyChanged(int value);
@@ -32,7 +37,10 @@ class MaterialLine : public QWidget
     private:
         Ui::MaterialLine *ui;
 
-        Material mMaterial;
+        bool archived;
+        bool changed;
+
+        Material material;
         int expectedQty;
 };
 

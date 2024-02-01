@@ -9,8 +9,12 @@
 #include <QNetworkAccessManager>
 #include <QObject>
 #include <QString>
+#include <QTextEdit>
 
 #include <optional>
+
+#include "Event.h"
+#include "Material.h"
 
 class RestAccessManager : public QObject
 {
@@ -22,7 +26,7 @@ class RestAccessManager : public QObject
     };
 
     public:
-        explicit RestAccessManager(const QString &host, quint16 port);
+        explicit RestAccessManager(const QString &host, quint16 port, QTextEdit* logArea);
         ~RestAccessManager();
 
         bool isAuthorized();
@@ -30,10 +34,11 @@ class RestAccessManager : public QObject
         void setUrl(QString Url, uint Port = 80);
         bool submitCredentials(const QString &user, const QString pass);
 
-        QJsonArray bookings(QDate start, QDate end);
+        QList<Event> bookings(QDate start, QDate end);
 
         using QObject::event;
-        QJsonObject event(int id);
+        Event event(int id);
+        Event returnMaterial(Event event, const QList<Material> &materials);
 
     signals:
         void authSuccess(bool isSuccess);
@@ -41,16 +46,16 @@ class RestAccessManager : public QObject
         void requestFinished();
 
     private slots:
-
-
         void requestError(QNetworkReply *reply);
-        //void requestTimeout();
-
-        void handleReply(QNetworkReply *reply);
-        bool getCredentials(QNetworkReply *reply);
 
     private:
         void setAuthorizationHeader(const QString &key, const QString &value);
+        QNetworkReply* get(QNetworkRequest *request);
+        QNetworkReply* put(QNetworkRequest *request, QJsonDocument parameters);
+        QNetworkReply* post(QNetworkRequest *request, QJsonDocument parameters);
+
+        void log(QNetworkReply *reply);
+        void log(QString text);
 
     private:
 
@@ -63,6 +68,8 @@ class RestAccessManager : public QObject
         std::optional<AuthHeader> authHeader;
         QNetworkAccessManager manager;
         mutable QMutex eventsMtx;
+
+        QTextEdit *logTxt;
 };
 
 #endif // RESTACCESSMANAGER_H

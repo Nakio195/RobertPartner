@@ -1,20 +1,24 @@
 #include "MainWindow.h"
 #include "ui_MainWindow.h"
+#include "widgets/ReturnDialog.h"
 
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWindow)
 {
     delayedFetch.setInterval(1000);
     connect(&delayedFetch, &QTimer::timeout, this, &MainWindow::fetchEvents);
 
-    api = new RestAccessManager("http://localhost", 80);
+    ui->setupUi(this);
+
+
+    api = new RestAccessManager("http://localhost", 80, ui->apiLog);
     events = new EventModel(api);
 
-    ui->setupUi(this);
 
     mAuthDialog = new AuthDialog(api, this);
 
     qDebug() << mAuthDialog->exec();
 
+    ui->apiLog->setVisible(false);
     ui->progressBar->hide();
 
     ui->datStart->setDate(QDate::currentDate().addDays(-15));
@@ -27,6 +31,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWi
 
     connect(api, &RestAccessManager::requestStarted, ui->progressBar, &QProgressBar::show);
     connect(api, &RestAccessManager::requestFinished, ui->progressBar, &QProgressBar::hide);
+    connect(ui->tblEvent->selectionModel(), &QItemSelectionModel::currentRowChanged, this, &MainWindow::selectionChanged);
 
 }
 
@@ -79,8 +84,16 @@ void MainWindow::centerOnToday()
     delayedFetch.start();
 }
 
+void MainWindow::selectionChanged(const QModelIndex &index)
+{
+    activeEvent = events->getEvent(index);
+
+    ui->btnReturn->setEnabled(!activeEvent.returned);
+    ui->btnDeparture->setEnabled(!activeEvent.departed);
+}
+
 void MainWindow::startDeparture()
 {
-    DepartureDialog departure(events->getEvent(ui->tblEvent->currentIndex()), api);
+    ReturnDialog departure(events->getEvent(ui->tblEvent->currentIndex()), api);
     departure.exec();
 }

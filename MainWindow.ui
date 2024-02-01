@@ -25,79 +25,64 @@
       </property>
      </widget>
     </item>
-    <item row="2" column="1" colspan="2">
-     <widget class="QLineEdit" name="txtSearch"/>
-    </item>
-    <item row="8" column="3">
-     <widget class="QCommandLinkButton" name="commandLinkButton_2">
-      <property name="text">
-       <string>Départ</string>
-      </property>
-     </widget>
-    </item>
-    <item row="0" column="1">
-     <widget class="QLabel" name="label_2">
-      <property name="text">
-       <string>Date Fin</string>
-      </property>
-     </widget>
-    </item>
-    <item row="1" column="1">
+    <item row="2" column="1">
      <widget class="QDateEdit" name="datEnd">
       <property name="calendarPopup">
        <bool>true</bool>
       </property>
      </widget>
     </item>
-    <item row="1" column="2">
-     <widget class="QCommandLinkButton" name="commandLinkButton_3">
+    <item row="9" column="0">
+     <widget class="QCommandLinkButton" name="btnDeparture">
+      <property name="enabled">
+       <bool>false</bool>
+      </property>
       <property name="text">
-       <string>Centrer sur aujourd'hui</string>
+       <string>Départ</string>
       </property>
      </widget>
     </item>
-    <item row="2" column="0">
-     <widget class="QLabel" name="label_3">
-      <property name="text">
-       <string>Recherche</string>
+    <item row="9" column="2">
+     <widget class="QCommandLinkButton" name="btnReturn">
+      <property name="enabled">
+       <bool>false</bool>
       </property>
-     </widget>
-    </item>
-    <item row="9" column="3">
-     <widget class="QCommandLinkButton" name="commandLinkButton">
       <property name="text">
        <string>Retour</string>
       </property>
      </widget>
     </item>
     <item row="1" column="0">
-     <widget class="QDateEdit" name="datStart">
-      <property name="calendarPopup">
-       <bool>true</bool>
-      </property>
-     </widget>
-    </item>
-    <item row="0" column="0">
      <widget class="QLabel" name="label">
       <property name="text">
        <string>Date début</string>
       </property>
      </widget>
     </item>
-    <item row="6" column="3">
-     <spacer name="verticalSpacer">
-      <property name="orientation">
-       <enum>Qt::Vertical</enum>
+    <item row="1" column="1">
+     <widget class="QLabel" name="label_2">
+      <property name="text">
+       <string>Date Fin</string>
       </property>
-      <property name="sizeHint" stdset="0">
-       <size>
-        <width>20</width>
-        <height>40</height>
-       </size>
-      </property>
-     </spacer>
+     </widget>
     </item>
-    <item row="4" column="0" rowspan="6" colspan="3">
+    <item row="11" column="0" colspan="4">
+     <widget class="QTextEdit" name="apiLog">
+      <property name="enabled">
+       <bool>true</bool>
+      </property>
+      <property name="verticalScrollBarPolicy">
+       <enum>Qt::ScrollBarAlwaysOn</enum>
+      </property>
+      <property name="undoRedoEnabled">
+       <bool>false</bool>
+      </property>
+      <property name="readOnly">
+       <bool>true</bool>
+      </property>
+     </widget>
+    </item>
+    <item row="5" column="0" rowspan="4" colspan="4">
      <widget class="QTableView" name="tblEvent">
       <property name="selectionMode">
        <enum>QAbstractItemView::SingleSelection</enum>
@@ -110,16 +95,27 @@
       </property>
      </widget>
     </item>
-    <item row="5" column="3">
-     <widget class="QGroupBox" name="grpEvent">
-      <property name="title">
-       <string>Évenement</string>
+    <item row="2" column="0">
+     <widget class="QDateEdit" name="datStart">
+      <property name="calendarPopup">
+       <bool>true</bool>
       </property>
-      <property name="flat">
-       <bool>false</bool>
+     </widget>
+    </item>
+    <item row="3" column="0">
+     <widget class="QLabel" name="label_3">
+      <property name="text">
+       <string>Recherche</string>
       </property>
-      <property name="checkable">
-       <bool>false</bool>
+     </widget>
+    </item>
+    <item row="3" column="1" colspan="3">
+     <widget class="QLineEdit" name="txtSearch"/>
+    </item>
+    <item row="1" column="2" rowspan="2" colspan="2">
+     <widget class="QCommandLinkButton" name="commandLinkButton_3">
+      <property name="text">
+       <string>Centrer sur aujourd'hui</string>
       </property>
      </widget>
     </item>
@@ -134,8 +130,26 @@
      <height>21</height>
     </rect>
    </property>
+   <widget class="QMenu" name="menuFichier">
+    <property name="title">
+     <string>Fichier</string>
+    </property>
+    <addaction name="actionAfficher_log_REST"/>
+   </widget>
+   <addaction name="menuFichier"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
+  <action name="actionAfficher_log_REST">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>Afficher log REST</string>
+   </property>
+  </action>
  </widget>
  <resources/>
  <connections>
@@ -188,18 +202,50 @@
    </hints>
   </connection>
   <connection>
-   <sender>commandLinkButton_2</sender>
+   <sender>btnReturn</sender>
    <signal>clicked()</signal>
    <receiver>MainWindow</receiver>
    <slot>startDeparture()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>680</x>
-     <y>486</y>
+     <x>695</x>
+     <y>520</y>
     </hint>
     <hint type="destinationlabel">
      <x>691</x>
      <y>365</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>tblEvent</sender>
+   <signal>activated(QModelIndex)</signal>
+   <receiver>MainWindow</receiver>
+   <slot>selectionChanged(QModelIndex)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>410</x>
+     <y>289</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>696</x>
+     <y>80</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>actionAfficher_log_REST</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>apiLog</receiver>
+   <slot>setVisible(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>-1</x>
+     <y>-1</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>399</x>
+     <y>472</y>
     </hint>
    </hints>
   </connection>
@@ -209,5 +255,6 @@
   <slot>endDateChanged()</slot>
   <slot>centerOnToday()</slot>
   <slot>startDeparture()</slot>
+  <slot>selectionChanged(QModelIndex)</slot>
  </slots>
 </ui>

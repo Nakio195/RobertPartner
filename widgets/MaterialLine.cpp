@@ -8,14 +8,17 @@ MaterialLine::MaterialLine(QVBoxLayout *list, Material &mat, int qty, int qtyDep
     if(list != nullptr)
         list->addWidget(this);
 
-    mMaterial = mat;
+    archived = false;
+    changed = false;
+
+    material = mat;
     expectedQty = qty;
 
     ui->returnedQty->setRange(0, expectedQty);
     ui->faultQty->setRange(0, expectedQty);
 
-    ui->name->setText(mMaterial.name);
-    ui->reference->setText(mMaterial.name);
+    ui->name->setText(material.name);
+    ui->reference->setText(material.reference);
     ui->expectedQty->setText(QString::number(expectedQty));
     ui->btnArchive->hide();
 
@@ -34,19 +37,39 @@ MaterialLine::~MaterialLine()
     delete ui;
 }
 
+Material MaterialLine::getMaterial()
+{
+    return material;
+}
+
+bool MaterialLine::isArchived()
+{
+    return archived;
+}
+
+
+bool MaterialLine::hasChanged()
+{
+    bool b = changed;
+    changed = false;
+    return b;
+}
+
 QString MaterialLine::reference()
 {
-    return mMaterial.reference;
+    return material.reference;
 }
 
 void MaterialLine::returnQtyChanged(int value)
 {
+    changed = true;
+    material.qtyReturned = value;
+
     if(value == expectedQty)
     {
+        this->setAutoFillBackground(true);
         ui->btnArchive->show();
         ui->btnPlusReturned->setEnabled(false);
-
-        this->setAutoFillBackground(true);
     }
 
     else
@@ -60,38 +83,54 @@ void MaterialLine::returnQtyChanged(int value)
         ui->btnMinusReturned->setEnabled(false);
     else
         ui->btnMinusReturned->setEnabled(true);
+
+
+    if(value < ui->faultQty->value())
+        ui->faultQty->setValue(value);
+
+
+    emit qtyChange();
 }
 
 void MaterialLine::faultQtyChanged(int value)
 {
-    // All materials returned faulty
-    if(value == expectedQty)
-    {
-        ui->btnArchive->show();
-        ui->btnPlusFault->setEnabled(false);
-        this->setAutoFillBackground(true);
-    }
-    else
-    {
-        ui->btnArchive->hide();
-        ui->btnPlusReturned->setEnabled(true);
-        this->setAutoFillBackground(false);
-    }
+    changed = true;
+
+    material.qtyFault = value;
 
     if(value == 0)
+    {
         ui->btnMinusFault->setEnabled(false);
-    else
-        ui->btnMinusFault->setEnabled(true);
 
+        QPalette green;
+        green.setColor(QPalette::Window, QColor(41, 60, 22));
+        this->setPalette(green);
+    }
+    else
+    {
+        ui->btnMinusFault->setEnabled(true);
+        QPalette red;
+        red.setColor(QPalette::Window, QColor(55, 34, 22));
+        this->setPalette(red);
+        this->setAutoFillBackground(true);
+
+        if(value == expectedQty)
+            ui->btnPlusFault->setEnabled(false);
+        else
+            ui->btnPlusFault->setEnabled(true);
+    }
 
     // More faulty material than returned material
     if(value > ui->returnedQty->value())
         ui->returnedQty->setValue(value);
+
+    emit qtyChange();
 
 }
 
 void MaterialLine::archiveLine()
 {
     this->hide();
-    emit archive();
+    archived = true;
+    emit archive(material);
 }

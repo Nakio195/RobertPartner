@@ -33,7 +33,7 @@ Material::Material(QJsonObject json)
             name = json[key].toString();
         if(key == QString("reference"))
             reference = json[key].toString();;
-        if(key == QString("start_date"))
+        if(key == QString("description"))
             description = json[key].toString();;
     }
 }
@@ -41,7 +41,12 @@ Material::Material(QJsonObject json)
 
 bool Material::operator==(const Material &other) const
 {
-    return name == other.name && id == other.id;
+    return id == other.id;
+}
+
+bool Material::operator==(const int &other) const
+{
+    return id == other;
 }
 
 bool Material::operator<(const Material &other) const
