@@ -5,15 +5,21 @@
 #include <QTimer>
 #include <QShortcut>
 #include <QKeyEvent>
+#include <QStack>
 
-#include "SEB/Material.h"
 #include "widgets/MaterialLine.h"
+
+#include "SEB/Item.h"
+#include "SEB/Inventory.h"
 #include "SEB/RESTManager.h"
 #include "SEB/Event.h"
+#include "SEB/InventoryAction.h"
+#include "SEB/BarCodeParser.h"
 
 namespace Ui {
 class ReturnDialog;
 }
+
 
 class ReturnDialog : public QDialog
 {
@@ -23,12 +29,23 @@ class ReturnDialog : public QDialog
         explicit ReturnDialog(Event event, RestAccessManager *api,  QWidget *parent = nullptr);
         ~ReturnDialog();
 
+    public slots:
+        void enableFilter(bool state);
+        void filter(QString filter);
+
     private slots:
-        void archive(const Material &mat);
-        void inventoryChange();
         void save();
 
+        void inventoryChange(InventoryAction *action);
+
+        void undo();
+        void redo();
+
         void selectBarCode();
+        void barCodeEntered();
+
+        void archiveAll();
+        void unarchiveAll();
 
         void keyPressEvent(QKeyEvent *k) override;
 
@@ -36,12 +53,18 @@ class ReturnDialog : public QDialog
         Ui::ReturnDialog *ui;
         RestAccessManager *api;
 
-        Event event;
-        QMap<int, MaterialLine*> list;
+        Event mEvent;
+        Inventory mInventory;
 
-        QTimer autoSave;
+        QMap<ItemID, MaterialLine*> mControls;
+        BarCodeParser mParser;
+
+
+        QTimer mAutoSave;
 
         QShortcut *barCodeShortcut;
 };
+
+
 
 #endif // RETURNDIALOG_H

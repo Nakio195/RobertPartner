@@ -14,7 +14,7 @@
 #include <optional>
 
 #include "Event.h"
-#include "Material.h"
+#include "SEB/Inventory.h"
 
 class RestAccessManager : public QObject
 {
@@ -38,12 +38,14 @@ class RestAccessManager : public QObject
 
         using QObject::event;
         Event event(int id);
-        Event returnMaterial(Event event, const QList<Material> &materials);
+        Event returnMaterial(Event event, const Inventory &inventory);
 
     signals:
         void authSuccess(bool isSuccess);
         void requestStarted();
         void requestFinished();
+        void requestStateChanged(bool state);
+        void dataValidityChanged(bool state);
 
     private slots:
         void requestError(QNetworkReply *reply);
@@ -58,8 +60,6 @@ class RestAccessManager : public QObject
         void log(QString text);
 
     private:
-
-        enum {None, Authorization, EventFetch, EventPush, MaterialFetch, MaterialPush};
 
         int mStatus;
 

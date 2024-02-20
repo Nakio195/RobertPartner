@@ -1,6 +1,5 @@
 #include "Event.h"
 
-
 Event::Event()
 {
     id = -1;
@@ -23,10 +22,10 @@ Event::Event(QJsonObject json)
             name = json[key].toString();
         if(key == QString("start_date"))
             start = QDate::fromString(json[key].toString().sliced(0, 10), "yyyy-MM-dd");
-        if(key == QString("start_date"))
+        if(key == QString("end_date"))
             end = QDate::fromString(json[key].toString().sliced(0, 10), "yyyy-MM-dd");
         if(key == QString("materials"))
-            getMaterials(json[key].toArray());
+            parseItems(json[key].toArray());
 
         if(key == QString("is_departure_inventory_done"))
             departed = json[key].toBool();
@@ -47,40 +46,82 @@ QJsonObject Event::toJson() const
 }
 
 
-void Event::getMaterials(QJsonArray mat)
+void Event::parseItems(const QJsonArray &mat)
 {
-    materials.clear();
+    items.clear();
 
     for(auto json : mat)
     {
-        Material material;
+        InventoryItem line;
         QJsonObject o = json.toObject();
 
-        for(auto&& key : o.keys())
-        {
-            if(key == QString("id"))
-                material.id = o[key].toInt();
-            if(key == QString("name"))
-                material.name = o[key].toString();
-            if(key == QString("reference"))
-                material.reference = o[key].toString();
-            if(key == QString("description"))
-                material.description = o[key].toString();
+        if(o.contains("id"))
+            line.item.id = ItemID(o["id"].toInt());
+        if(o.contains("name"))
+            line.item.name = o["name"].toString();
+        if(o.contains("reference"))
+            line.item.reference = o["reference"].toString();
+        if(o.contains("description"))
+            line.item.description = o["description"].toString();
+        if(o.contains("is_unitary"))
+            line.item.isUnitary = o["is_unitary"].toBool();
 
-            if(key == QString("pivot"))
+        if(o.contains("pivot"))
+        {
+            QJsonObject oo = o["pivot"].toObject();
+
+            if(line.isUnitary())
             {
-                QJsonObject oo = o[key].toObject();
+                QMap<int, QString> unitsReference;
+
+                QJsonArray unitsList = o["units"].toArray();
+                for(const auto &unitRef : unitsList)
+                {
+                    QJsonObject unit = unitRef.toObject();
+                    unitsReference[unit["id"].toInt()] = unit["reference"].toString();
+                }
+
+                if(oo.contains("units_details"))
+                {
+                    QJsonArray a = oo["units_details"].toArray();
+
+                    for(auto json_unit : a)
+                    {
+                        InventoryItem unit;
+                        unit.item = line.item;
+                        unit.set(List::Expected, 1);
+
+                        QJsonObject ooo = json_unit.toObject();
+
+                        if(ooo.contains("id"))
+                            unit.item.id.unit = ooo["id"].toInt();
+                        if(ooo.contains("is_returned"))
+                            unit.set(List::Return, ooo["is_returned"].toBool());
+                        if(ooo.contains("is_returned_broken"))
+                            unit.set(List::Fault, ooo["is_returned_broken"].toBool());
+                        if(unitsReference.contains(unit.item.id.unit))
+                            unit.item.reference = unitsReference[unit.item.id.unit];
+
+                        line.units.push_back(unit);
+                    }
+
+                }
+            }
+
+            else
+            {
                 if(oo.contains("quantity"))
-                    material.qty = oo["quantity"].toInt();
+                    line.set(List::Expected, oo["quantity"].toInt());
                 if(oo.contains("quantity_departed"))
-                    material.qtyDeparted =  oo["quantity_departed"].toInt();
+                    line.set(List::Departed, oo["quantity_departed"].toInt());
                 if(oo.contains("quantity_returned_broken"))
-                    material.qtyFault = oo["quantity_returned_broken"].toInt();
+                    line.set(List::Fault, oo["quantity_returned_broken"].toInt());
                 if(oo.contains("quantity_returned"))
-                    material.qtyReturned = oo["quantity_returned"].toInt();
+                    line.set(List::Return, oo["quantity_returned"].toInt());
+
             }
         }
 
-        materials.append(material);
+        items.append(line);
     }
 }

@@ -7,8 +7,9 @@
 #include <QJsonObject>
 #include <QJsonArray>
 #include <QString>
-#include "Material.h"
 #include <QDate>
+
+#include "InventoryItem.h"
 
 class Event
 {
@@ -21,8 +22,10 @@ class Event
 
         static constexpr qsizetype size() { return 6; }
 
+        Item* get(QString ref);
+
     private:
-        void getMaterials(QJsonArray mat);
+        void parseItems(const QJsonArray &mat);
 
     public:
         qint64 id;
@@ -33,7 +36,7 @@ class Event
         bool departed;
         bool returned;
 
-        QList<Material> materials;
+        QList<InventoryItem> items;
 };
 
 #endif // TYPES_H

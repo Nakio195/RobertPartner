@@ -23,18 +23,17 @@ class MainWindow : public QMainWindow
         MainWindow(QWidget *parent = nullptr);
         ~MainWindow();
 
-
     public slots:
         void startDateChanged();
         void endDateChanged();
         void centerOnToday();
+
+        void setDatesVisibility(bool visibility);
+
         void selectionChanged(const QModelIndex &index);
 
         void fetchEvents();
-        void startDeparture();
-
-    private:
-        void eventInformations();
+        void startDeparture();            
 
     private:
         RestAccessManager *api;
@@ -46,7 +45,5 @@ class MainWindow : public QMainWindow
         QTimer delayedFetch;
 
         Event activeEvent;
-
-
 };
 #endif // MAINWINDOW_H

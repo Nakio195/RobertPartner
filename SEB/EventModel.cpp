@@ -54,7 +54,7 @@ QVariant EventModel::headerData(int section, Qt::Orientation orientation, int ro
             switch (section)
             {
                 case 0:
-                return QVariant("id"); // ID is not shown
+                    return QVariant("id"); // ID is not shown
                 case 1:
                     return QVariant("Nom");
                 case 2:
@@ -123,11 +123,12 @@ QVariant EventModel::data(const QModelIndex &index, int role) const
             //     break;
 
             case EventRoles::StartRole:
-                ret = event.start;
+
+                ret = QLocale::system().toString(event.start, "d MMMM");
                 break;
 
             case EventRoles::EndRole:
-                ret = event.end;
+                ret = QLocale::system().toString(event.end, "d MMMM");
                 break;
         }
 
@@ -165,4 +166,9 @@ Q_INVOKABLE void EventModel::fetch(QDate start, QDate end)
     endResetModel();
 }
 
+
+void EventModel::showDates(bool state)
+{
+    datesVisible = state;
+}
 

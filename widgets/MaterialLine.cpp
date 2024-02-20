@@ -1,7 +1,7 @@
 #include "MaterialLine.h"
 #include "ui_MaterialLine.h"
 
-MaterialLine::MaterialLine(QVBoxLayout *list, Material &mat, int qty, int qtyDep, int qtyRet, int qtyFau) : QWidget(list->parentWidget()), ui(new Ui::MaterialLine)
+MaterialLine::MaterialLine(QVBoxLayout *list, const InventoryItem &ln) : QWidget(list->parentWidget()), line(ln), ui(new Ui::MaterialLine)
 {
     ui->setupUi(this);
 
@@ -9,27 +9,34 @@ MaterialLine::MaterialLine(QVBoxLayout *list, Material &mat, int qty, int qtyDep
         list->addWidget(this);
 
     archived = false;
+    archivable = false;
     changed = false;
 
-    material = mat;
-    expectedQty = qty;
 
-    ui->returnedQty->setRange(0, expectedQty);
-    ui->faultQty->setRange(0, expectedQty);
+    if(line.item.isUnitary)
+    {
+        ui->reference->setText(QString("Référence : ") + line.reference());
+    }
 
-    ui->name->setText(material.name);
-    ui->reference->setText(material.reference);
-    ui->expectedQty->setText(QString::number(expectedQty));
+    else
+    {
+        ui->reference->setText(QString::number(line.item.id.id));
+    }
+
+    ui->returnedQty->setRange(0, line.quantity(List::Expected));
+    ui->faultQty->setRange(0, line.quantity(List::Expected));
+
+    ui->name->setText(line.item.name);
+
+    ui->expectedQty->setText(QString::number(line.quantity(List::Expected)));
     ui->btnArchive->hide();
 
-    ui->returnedQty->setValue(qtyRet);
+    oldRet = line.quantity(List::Return);
+    oldFault = line.quantity(List::Fault);
 
-    if(qtyRet)
-        returnQtyChanged(qtyRet);
+    ui->returnedQty->setValue(line.quantity(List::Return));
+    ui->faultQty->setValue(line.quantity(List::Fault));
 
-    ui->faultQty->setValue(qtyFau);
-    if(qtyFau)
-        faultQtyChanged(qtyFau);
 }
 
 MaterialLine::~MaterialLine()
@@ -37,16 +44,25 @@ MaterialLine::~MaterialLine()
     delete ui;
 }
 
-Material MaterialLine::getMaterial()
-{
-    return material;
-}
-
 bool MaterialLine::isArchived()
 {
     return archived;
 }
 
+void MaterialLine::setArchived(bool state)
+{
+    if(state && !archivable)
+        return;
+
+    if(state)
+        archiveLine();
+
+    else
+    {
+        this->show();
+        archived = false;
+    }
+}
 
 bool MaterialLine::hasChanged()
 {
@@ -55,76 +71,128 @@ bool MaterialLine::hasChanged()
     return b;
 }
 
-QString MaterialLine::reference()
+void MaterialLine::update(const InventoryItem& item)
 {
-    return material.reference;
+
+    if(item.id() != line.id())
+        return;
+
+    oldRet = item.quantity(List::Return);
+    oldFault = item.quantity(List::Fault);
+
+    changed = true;
+
+    ui->returnedQty->blockSignals(true);
+    ui->returnedQty->setValue(oldRet);
+    ui->returnedQty->blockSignals(false);
+
+    ui->faultQty->blockSignals(true);
+    ui->faultQty->setValue(oldFault);
+    ui->faultQty->blockSignals(false);
+
+    handleUI();
 }
 
 void MaterialLine::returnQtyChanged(int value)
 {
     changed = true;
-    material.qtyReturned = value;
 
-    if(value == expectedQty)
+    if(oldRet != value)
     {
-        this->setAutoFillBackground(true);
-        ui->btnArchive->show();
-        ui->btnPlusReturned->setEnabled(false);
+
+        InventoryAction *action = new InventoryAction(line, value - oldRet, List::Return);
+        emit valueChanged(action);
+
+        oldRet = value;
+
+        if(value < ui->faultQty->value())
+            ui->faultQty->setValue(value);
     }
 
-    else
-    {
-        this->setAutoFillBackground(false);
-        ui->btnArchive->hide();
-        ui->btnPlusReturned->setEnabled(true);
-    }
-
-    if(value == 0)
-        ui->btnMinusReturned->setEnabled(false);
-    else
-        ui->btnMinusReturned->setEnabled(true);
-
-
-    if(value < ui->faultQty->value())
-        ui->faultQty->setValue(value);
-
-
-    emit qtyChange();
+    handleUI();
 }
 
 void MaterialLine::faultQtyChanged(int value)
 {
-    changed = true;
-
-    material.qtyFault = value;
-
-    if(value == 0)
+    if(oldFault != value)
     {
-        ui->btnMinusFault->setEnabled(false);
+        changed = true;
 
-        QPalette green;
-        green.setColor(QPalette::Window, QColor(41, 60, 22));
-        this->setPalette(green);
+        InventoryAction *action = new InventoryAction(line, value - oldFault, List::Fault);
+        emit valueChanged(action);
+
+        oldFault = value;
+
+        // More faulty material than returned material
+        if(value > ui->returnedQty->value())
+            ui->returnedQty->setValue(value);
+    }
+
+    handleUI();
+}
+
+
+void MaterialLine::handleUI()
+{
+    if(!hasChanged())
+        return;
+
+    int valueRet = ui->returnedQty->value();
+    int valueFault = ui->faultQty->value();
+
+    //Buttons
+    if(valueFault == 0)
+        ui->btnMinusFault->setEnabled(false);
+    else
+        ui->btnMinusFault->setEnabled(true);
+
+    if(valueFault == line.quantity(List::Expected))
+        ui->btnPlusFault->setEnabled(false);
+    else
+        ui->btnPlusFault->setEnabled(true);
+
+    if(valueRet == 0)
+        ui->btnMinusReturned->setEnabled(false);
+    else
+        ui->btnMinusReturned->setEnabled(true);
+
+    if(valueRet == line.quantity(List::Expected))
+        ui->btnPlusReturned->setEnabled(false);
+    else
+        ui->btnPlusReturned->setEnabled(true);
+
+
+    //Archive
+    if(valueRet == line.quantity(List::Expected))
+    {
+        archivable = true;
+        ui->btnArchive->show();
     }
     else
     {
-        ui->btnMinusFault->setEnabled(true);
-        QPalette red;
-        red.setColor(QPalette::Window, QColor(55, 34, 22));
-        this->setPalette(red);
-        this->setAutoFillBackground(true);
-
-        if(value == expectedQty)
-            ui->btnPlusFault->setEnabled(false);
-        else
-            ui->btnPlusFault->setEnabled(true);
+        archivable = false;
+        ui->btnArchive->hide();
     }
 
-    // More faulty material than returned material
-    if(value > ui->returnedQty->value())
-        ui->returnedQty->setValue(value);
+    //Color
+    if(valueRet == line.quantity(List::Expected))
+    {
+        QPalette green;
+        green.setColor(QPalette::Window, QColor(89, 170, 94));
+        this->setPalette(green);
+        this->setAutoFillBackground(true);
+    }
 
-    emit qtyChange();
+    if(valueFault != 0)
+    {
+        QPalette red;
+        red.setColor(QPalette::Window, QColor(170, 89, 94));
+        this->setPalette(red);
+        this->setAutoFillBackground(true);
+    }
+
+    if(valueFault == 0 && valueRet != line.quantity(List::Expected))
+        this->setAutoFillBackground(false);
 
 }
 
@@ -132,5 +200,4 @@ void MaterialLine::archiveLine()
 {
     this->hide();
     archived = true;
-    emit archive(material);
 }

@@ -9,9 +9,13 @@ CONFIG += c++17
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
 SOURCES += \
+    SEB/BarCodeParser.cpp \
     SEB/Event.cpp \
     SEB/EventModel.cpp \
-    SEB/Material.cpp \
+    SEB/Inventory.cpp \
+    SEB/InventoryAction.cpp \
+    SEB/InventoryItem.cpp \
+    SEB/Item.cpp \
     SEB/RESTManager.cpp \
     main.cpp \
     MainWindow.cpp \
@@ -21,9 +25,14 @@ SOURCES += \
 
 HEADERS += \
     MainWindow.h \
+    SEB/BarCodeParser.h \
     SEB/Event.h \
     SEB/EventModel.h \
-    SEB/Material.h \
+    SEB/GlobalConstants.h \
+    SEB/Inventory.h \
+    SEB/InventoryAction.h \
+    SEB/InventoryItem.h \
+    SEB/Item.h \
     SEB/RESTManager.h \
     widgets/AuthDialog.h \
     widgets/MaterialLine.h \

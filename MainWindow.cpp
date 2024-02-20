@@ -25,13 +25,20 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWi
     ui->datEnd->setDate(QDate::currentDate().addDays(15));
 
     ui->tblEvent->setModel(events);
-    ui->tblEvent->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+    ui->tblEvent->horizontalHeader()->setStretchLastSection(true);
+    ui->tblEvent->setColumnWidth(1, 450);
+    ui->tblEvent->hideColumn(0);
+    ui->tblEvent->hideColumn(4);
+    ui->tblEvent->hideColumn(5);
 
     events->fetch(ui->datStart->date(), ui->datEnd->date());
 
-    connect(api, &RestAccessManager::requestStarted, ui->progressBar, &QProgressBar::show);
-    connect(api, &RestAccessManager::requestFinished, ui->progressBar, &QProgressBar::hide);
+    connect(api, &RestAccessManager::requestStateChanged, ui->progressBar, &QProgressBar::setVisible);
+    connect(api, &RestAccessManager::dataValidityChanged, ui->tblEvent, &QTableView::setEnabled);
     connect(ui->tblEvent->selectionModel(), &QItemSelectionModel::currentRowChanged, this, &MainWindow::selectionChanged);
+    connect(ui->datStart, &QDateEdit::dateChanged, this, &MainWindow::startDateChanged);
+    connect(ui->datEnd, &QDateEdit::dateChanged, this, &MainWindow::endDateChanged);
+    connect(ui->chkDates, &QCheckBox::stateChanged, this, &MainWindow::setDatesVisibility);
 
 }
 
@@ -75,7 +82,6 @@ void MainWindow::endDateChanged()
     delayedFetch.start();
 }
 
-
 void MainWindow::centerOnToday()
 {
     ui->datStart->setDate(QDate::currentDate().addDays(-15));
@@ -84,12 +90,18 @@ void MainWindow::centerOnToday()
     delayedFetch.start();
 }
 
+void MainWindow::setDatesVisibility(bool visibility)
+{
+    ui->tblEvent->setColumnHidden(4, !visibility);
+    ui->tblEvent->setColumnHidden(5, !visibility);
+}
+
 void MainWindow::selectionChanged(const QModelIndex &index)
 {
     activeEvent = events->getEvent(index);
 
-    ui->btnReturn->setEnabled(!activeEvent.returned);
-    ui->btnDeparture->setEnabled(!activeEvent.departed);
+    ui->btnReturn->setEnabled(!activeEvent.returned && activeEvent.start <= QDate::currentDate());
+    ui->btnDeparture->setEnabled(!activeEvent.departed && activeEvent.end >= QDate::currentDate());
 }
 
 void MainWindow::startDeparture()

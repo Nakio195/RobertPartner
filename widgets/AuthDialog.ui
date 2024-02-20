@@ -6,12 +6,12 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>400</width>
-    <height>300</height>
+    <width>350</width>
+    <height>227</height>
    </rect>
   </property>
   <property name="windowTitle">
-   <string>Dialog</string>
+   <string>RobertPartner - Connexion</string>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout_2">
    <item>
@@ -23,7 +23,7 @@
       <item row="2" column="1">
        <widget class="QLineEdit" name="txtPassword">
         <property name="text">
-         <string>1234567890</string>
+         <string>vador41181119512513</string>
         </property>
         <property name="echoMode">
          <enum>QLineEdit::Password</enum>
@@ -36,7 +36,7 @@
       <item row="0" column="1">
        <widget class="QLineEdit" name="txtUrl">
         <property name="text">
-         <string>https://robert-dev.seb-tech.fr</string>
+         <string>https://seb.loxya.app</string>
         </property>
         <property name="placeholderText">
          <string>https://robert-dev.seb-tech.fr</string>
@@ -65,6 +65,9 @@
       </item>
       <item row="3" column="0" colspan="2">
        <widget class="QLabel" name="lblStatus">
+        <property name="enabled">
+         <bool>true</bool>
+        </property>
         <property name="text">
          <string/>
         </property>
@@ -80,7 +83,7 @@
       <item row="1" column="1">
        <widget class="QLineEdit" name="txtIdentifier">
         <property name="text">
-         <string>Robot</string>
+         <string>TooT</string>
         </property>
         <property name="placeholderText">
          <string>Robot</string>
@@ -109,6 +112,11 @@
    </item>
   </layout>
  </widget>
+ <tabstops>
+  <tabstop>txtUrl</tabstop>
+  <tabstop>txtIdentifier</tabstop>
+  <tabstop>txtPassword</tabstop>
+ </tabstops>
  <resources/>
  <connections>
   <connection>

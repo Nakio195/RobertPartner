@@ -2,9 +2,8 @@
 #define MATERIALLINE_H
 
 #include <QWidget>
-#include "SEB/Material.h"
 #include <QVBoxLayout>
-
+#include "SEB/InventoryAction.h"
 
 namespace Ui {
 class MaterialLine;
@@ -15,33 +14,40 @@ class MaterialLine : public QWidget
     Q_OBJECT
 
     public:
-        explicit MaterialLine(QVBoxLayout *list, Material &mat, int qty, int qtyDep = 0, int qtyRet = 0, int qtyFau = 0);
+        explicit MaterialLine(QVBoxLayout *list, const InventoryItem &item);
         ~MaterialLine();
 
-        QString reference();
         bool isArchived();
+
         bool hasChanged();
 
-        Material getMaterial();
-
+        const InventoryItem line;
 
     signals:
-        void archive(const Material &mat);
-        void qtyChange();
+        void valueChanged(InventoryAction *action);
 
     public slots:
         void returnQtyChanged(int value);
         void faultQtyChanged(int value);
+
+        void update(const InventoryItem& item);
+
+        void setArchived(bool state);
         void archiveLine();
+
+    private:
+        void handleUI();
 
     private:
         Ui::MaterialLine *ui;
 
         bool archived;
+        bool archivable;
         bool changed;
 
-        Material material;
-        int expectedQty;
+        qint64 oldRet;
+        qint64 oldFault;
+
 };
 
 #endif // MATERIALLINE_H

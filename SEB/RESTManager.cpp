@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR BSD-3-Clause
 
 #include "RESTManager.h"
+#include "SEB/Inventory.h"
 
 #include <QJsonArray>
 #include <QJsonObject>
@@ -177,6 +178,8 @@ QNetworkReply* RestAccessManager::get(QNetworkRequest *request)
     log("Sending GET request " + request->url().toDisplayString());
 
     emit requestStarted();
+    emit requestStateChanged(true);
+    emit dataValidityChanged(false);
     QEventLoop loop;
     connect(&manager, &QNetworkAccessManager::finished, &loop, &QEventLoop::quit);
 
@@ -184,6 +187,8 @@ QNetworkReply* RestAccessManager::get(QNetworkRequest *request)
     loop.exec();
 
     emit requestFinished();
+    emit requestStateChanged(false);
+    emit dataValidityChanged(true);
 
     disconnect(&manager, &QNetworkAccessManager::finished, &loop, &QEventLoop::quit);
 
@@ -203,6 +208,8 @@ QNetworkReply* RestAccessManager::put(QNetworkRequest *request, QJsonDocument pa
     qDebug() << parameters.toJson(QJsonDocument::Compact);
 
     emit requestStarted();
+    emit requestStateChanged(true);
+    emit dataValidityChanged(false);
     QEventLoop loop;
     connect(&manager, &QNetworkAccessManager::finished, &loop, &QEventLoop::quit);
 
@@ -210,6 +217,8 @@ QNetworkReply* RestAccessManager::put(QNetworkRequest *request, QJsonDocument pa
     loop.exec();
 
     emit requestFinished();
+    emit requestStateChanged(false);
+    emit dataValidityChanged(true);
 
     disconnect(&manager, &QNetworkAccessManager::finished, &loop, &QEventLoop::quit);
 
@@ -225,11 +234,19 @@ QNetworkReply* RestAccessManager::post(QNetworkRequest *request, QJsonDocument p
     request->setHeader(QNetworkRequest::KnownHeaders::ContentLengthHeader, parameters.toJson(QJsonDocument::Compact).size());
 
 
+    emit requestStarted();
+    emit requestStateChanged(true);
+    emit dataValidityChanged(false);
+
     QEventLoop loop;
     connect(&manager, &QNetworkAccessManager::finished, &loop, &QEventLoop::quit);
 
     QNetworkReply* reply = manager.post(*request, parameters.toJson(QJsonDocument::Compact));
     loop.exec();
+
+    emit requestFinished();
+    emit requestStateChanged(false);
+    emit dataValidityChanged(true);
 
     disconnect(&manager, &QNetworkAccessManager::finished, &loop, &QEventLoop::quit);
 
@@ -295,15 +312,48 @@ Event RestAccessManager::event(int id)
 }
 
 
-Event RestAccessManager::returnMaterial(Event event, const QList<Material> &materials)
+Event RestAccessManager::returnMaterial(Event event, const Inventory &inventory)
 {
     QJsonArray list;
 
-    for(auto mat : materials)
-        list.append(QJsonObject{{"actual", mat.qtyReturned}, {"broken", mat.qtyFault}, {"id", mat.id}});
+    for(auto const &mat : inventory.list)
+    {
+        if(mat.isUnitary())
+        {
+            QJsonArray units;
+
+            int actual = 0;
+            int broken = 0;
+
+            for(const auto &u : mat.units)
+            {
+                QJsonObject unit;
+                unit["id"] = u.item.id.unit;
+                unit["isPresent"] = bool(u.quantity(List::Return));
+                unit["isBroken"] = bool(u.quantity(List::Fault));
+                units.append(unit);
+
+                actual += u.quantity(List::Return);
+                broken += u.quantity(List::Fault);
+            }
+
+            QJsonObject unitaryItems;
+            unitaryItems["id"] = mat.id().id;
+            unitaryItems["actual"] = actual;
+            unitaryItems["units"] = units;
+            unitaryItems["broken"] = broken;
+
+            list.append(unitaryItems);
+        }
+
+        else
+            list.append(QJsonObject{{"actual", mat.quantity(List::Return)}, {"broken", mat.quantity(List::Fault)}, {"id", mat.id().id}});
+    }
 
     QUrl url(baseAPI+QString("/events/") + QString::number(event.id) + QString("/return"));
     auto request = QNetworkRequest(url);
+
+    //log(QJsonDocument(list).toJson());
 
     QNetworkReply *reply = put(&request, QJsonDocument(list));
 

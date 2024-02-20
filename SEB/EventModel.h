@@ -36,10 +36,13 @@ class EventModel : public QAbstractTableModel
 
     public slots:
         Q_INVOKABLE void fetch(QDate start, QDate end = QDate(0, 0, 0));
+        void showDates(bool state);
 
     private:
         RestAccessManager *api;
         QList<Event> events;
+
+        bool datesVisible;
 };
 
 #endif
